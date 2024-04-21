@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package proto;
+
+message Profile {
+    int64 ID = 1; // tg user id, mention [inline mention of a user](tg://user?id=123456789)
+    string name = 2;
+    int32 age = 3;
+    string description = 4;
+    string location = 5;
+}
+
+service ProfileService {
+    rpc CreateProfile (ProfileRequest) returns (ErrorResponse);
+    rpc ReadProfile (IdRequest) returns (Profile);
+    rpc UpdateProfile (ProfileRequest) returns (ErrorResponse);
+
+}
+
+message ProfileRequest {
+    Profile profile = 1;
+}
+
+message IdRequest {
+    int64 id = 1;
+}
+
+message ErrorResponse {
+    string error_message = 1;
+}
+
+option go_package = "gateway/profilespb";

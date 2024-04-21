@@ -1,0 +1,17 @@
+GRPC localhost:50051/proto.ProfileService/UpdateProfile
+
+
+//{
+//  "profile": {
+//    "ID": 423425,
+//    "name": "хуй",
+//    "age": 17,
+//    "description": "ЛЮБЛЮ САСАТЬ ХУЙ",
+//    "location": "Киев"
+//  }
+//}
+
+
+//{
+//  "id": 423425
+//}

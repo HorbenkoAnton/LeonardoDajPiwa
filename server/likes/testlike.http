@@ -1,0 +1,11 @@
+GRPC localhost:50051/likes.LikeService/Like
+
+{
+  "id": "2",
+  "tgtId": "1"
+}
+
+//{
+//  "id": 1
+//}
+

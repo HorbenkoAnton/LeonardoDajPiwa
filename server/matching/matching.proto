@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package matching;
+
+service MatchingService {
+    // Returns next profile to display,
+    // returns ID = -1 if no profiles found in given location
+    rpc GetNextProfile (IdReqResp) returns (IdReqResp);
+}
+
+message IdReqResp {
+    int64 ID = 1;
+}
+
+option go_package = "matching/proto";
