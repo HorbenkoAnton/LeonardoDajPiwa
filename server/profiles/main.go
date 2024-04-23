@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	pb "dp_mock/backend/profiles/proto"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	pb "profiles/proto"
 	"time"
 )
 

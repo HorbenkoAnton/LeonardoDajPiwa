@@ -124,18 +124,22 @@ func (s *server) Like(ctx context.Context, in *gatewaypb.TargetRequest) (*gatewa
 	}
 
 	resultGW := &gatewaypb.ErrorResponse{ErrorMessage: result.ErrorMessage}
+
 	return resultGW, nil
 }
 
 func (s *server) GetLikes(ctx context.Context, in *gatewaypb.IdRequest) (*gatewaypb.LikesResponse, error) {
 	arg := &likespb.IdRequest{Id: in.Id}
+
 	result, err := likeStub.GetLikes(ctx, arg)
+
 	if err != nil {
 		fmt.Println("GetLikes error, ", err)
 		return nil, err
 	}
 
 	likesGW := make([]*gatewaypb.Profile, 0)
+
 	for _, like := range result.Likes {
 		profile := &gatewaypb.Profile{
 			ID:          like.ID,
@@ -175,7 +179,9 @@ func main() {
 		fmt.Println("Failed to listen:", err)
 		return
 	}
+
 	s := grpc.NewServer()
+
 	gatewaypb.RegisterProfileServiceServer(s, &server{})
 	fmt.Println("Server started at port", 50050)
 
