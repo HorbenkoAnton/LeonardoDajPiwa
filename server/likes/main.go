@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	pb "dp_mock/backend/likes/proto"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
+	pb "likes/proto"
 	"log"
 	"net"
 	"time"
