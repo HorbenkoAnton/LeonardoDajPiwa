@@ -5,9 +5,11 @@ import (
 	"fmt"
 	pb "gateway/protos/gatewaypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
 	"os"
+	"time"
 )
 
 var (
@@ -100,37 +102,49 @@ func (s *server) GetLikes(ctx context.Context, in *pb.IdRequest) (*pb.LikesRespo
 }
 
 func main() {
-	matchingConn, err := grpc.Dial(net.JoinHostPort("localhost", os.Getenv("MATCHING_PORT")))
+	// sleep to give services time to start
+	time.Sleep(5 * time.Second)
+	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
+	matchingConn, err := grpc.Dial(
+		net.JoinHostPort("matching", os.Getenv("MATCHING_PORT")),
+		opts)
 	if err != nil {
 		log.Fatalln("Cannot connect to matching, ", err)
 	}
 	matchingStub = pb.NewProfileServiceClient(matchingConn)
 
-	profileConn, err := grpc.Dial(net.JoinHostPort("localhost", os.Getenv("PROFILES_PORT")))
+	profileConn, err := grpc.Dial(
+		net.JoinHostPort("profiles", os.Getenv("PROFILES_PORT")),
+		opts)
 	if err != nil {
 		log.Fatalln("Cannot connect to profile, ", err)
 	}
 	profileStub = pb.NewProfileServiceClient(profileConn)
 
-	likeConn, err := grpc.Dial(net.JoinHostPort("localhost", os.Getenv("LIKES_PORT")))
+	likeConn, err := grpc.Dial(
+		net.JoinHostPort("likes", os.Getenv("LIKES_PORT")),
+		opts)
 	if err != nil {
 		log.Fatalln("Cannot connect to likes, ", err)
 	}
 	likesStub = pb.NewProfileServiceClient(likeConn)
 
-	lis, err := net.Listen("tcp", net.JoinHostPort("localhost", os.Getenv("GATEWAY_PORT")))
-	if err != nil {
-		fmt.Println("Failed to listen:", err)
-		return
+	srv := grpc.NewServer()
+	pb.RegisterProfileServiceServer(srv, &server{})
+
+	port := os.Getenv("GATEWAY_PORT")
+	if port == "" {
+		log.Fatalf("Error: port not provided, add GATEWAY env var")
 	}
 
-	s := grpc.NewServer()
+	lis, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
 
-	pb.RegisterProfileServiceServer(s, &server{})
-	fmt.Println("Server started at port", os.Getenv("GATEWAY_PORT"))
+	log.Println("Server started")
 
-	if err := s.Serve(lis); err != nil {
-		fmt.Println("Failed to serve:", err)
-		return
+	if err := srv.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }

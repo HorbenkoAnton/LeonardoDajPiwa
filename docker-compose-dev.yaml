@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+  db:
+    container_name: db
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: db
+  gateway:
+    build:
+      context: ./server/gateway
+      dockerfile: Dockerfile
+    ports:
+      - "50051:50051"
+    env_file:
+      - server/.env
+
+  likes:
+    build:
+      context: ./server/likes
+      dockerfile: Dockerfile
+    env_file:
+      - server/.env
+
+  matching:
+    build:
+      context: ./server/matching
+      dockerfile: Dockerfile
+    env_file:
+      - server/.env
+
+  profiles:
+    build:
+      context: ./server/profiles
+      dockerfile: Dockerfile
+    env_file:
+      - server/.env
