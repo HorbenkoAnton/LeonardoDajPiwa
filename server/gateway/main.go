@@ -3,178 +3,122 @@ package main
 import (
 	"context"
 	"fmt"
-	"gateway/protos/gatewaypb"
-	"gateway/protos/likespb"
-	"gateway/protos/matchingpb"
-	profilespb "gateway/protos/profilepb"
+	pb "gateway/protos/gatewaypb"
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
 )
 
-var matchingStub matchingpb.MatchingServiceClient
-var profileStub profilespb.ProfileServiceClient
-var likeStub likespb.LikeServiceClient
+var (
+	profileStub  pb.ProfileServiceClient
+	matchingStub pb.ProfileServiceClient
+	likesStub    pb.ProfileServiceClient
+)
 
 type server struct {
-	gatewaypb.UnimplementedProfileServiceServer
+	pb.UnimplementedProfileServiceServer
 }
 
-func (s *server) CreateProfile(ctx context.Context, in *gatewaypb.ProfileRequest) (*gatewaypb.ErrorResponse, error) {
-	arg := &profilespb.ProfileRequest{}
-	arg.Profile = &profilespb.Profile{
-		ID:          in.Profile.ID,
-		Name:        in.Profile.Name,
-		Age:         in.Profile.Age,
-		Description: in.Profile.Description,
-		Location:    in.Profile.Location,
-	}
-
-	result, err := profileStub.CreateProfile(ctx, arg)
+func (s *server) CreateProfile(ctx context.Context, in *pb.ProfileRequest) (*pb.ErrorResponse, error) {
+	result, err := profileStub.CreateProfile(ctx, in)
 	if err != nil {
 		fmt.Println("CreateProfile error, ", err)
 		return nil, err
 	}
 
-	resultGW := &gatewaypb.ErrorResponse{
-		ErrorMessage: result.ErrorMessage,
-	}
-
-	return resultGW, nil
+	return result, nil
 }
 
-func (s *server) ReadProfile(ctx context.Context, in *gatewaypb.IdRequest) (*gatewaypb.Profile, error) {
-	arg := &profilespb.IdRequest{Id: in.Id}
-	profile, err := profileStub.ReadProfile(ctx, arg)
+func (s *server) ReadProfile(ctx context.Context, in *pb.IdRequest) (*pb.Profile, error) {
+	profile, err := profileStub.ReadProfile(ctx, in)
 	if err != nil {
 		fmt.Println("ReadProfile error:", err)
 		return nil, err
 	}
 
-	result := &gatewaypb.Profile{
-		ID:          profile.ID,
-		Name:        profile.Name,
-		Age:         profile.Age,
-		Description: profile.Description,
-		Location:    profile.Location,
-	}
-
-	return result, nil
+	return profile, nil
 }
 
-func (s *server) UpdateProfile(ctx context.Context, in *gatewaypb.ProfileRequest) (*gatewaypb.ErrorResponse, error) {
-	arg := &profilespb.ProfileRequest{}
-	arg.Profile = &profilespb.Profile{
-		ID:          in.Profile.ID,
-		Name:        in.Profile.Name,
-		Age:         in.Profile.Age,
-		Description: in.Profile.Description,
-		Location:    in.Profile.Location,
-	}
-	result, err := profileStub.UpdateProfile(ctx, arg)
+func (s *server) UpdateProfile(ctx context.Context, in *pb.ProfileRequest) (*pb.ErrorResponse, error) {
+	result, err := profileStub.UpdateProfile(ctx, in)
 	if err != nil {
 		fmt.Println("UpdateProfile error:", err)
 		return nil, err
 	}
 
-	resultGW := &gatewaypb.ErrorResponse{
-		ErrorMessage: result.ErrorMessage,
-	}
-
-	return resultGW, nil
+	return result, nil
 }
 
-func (s *server) GetNextProfile(ctx context.Context, in *gatewaypb.IdRequest) (*gatewaypb.Profile, error) {
-	selfID := in.GetId()
-	fmt.Println(ctx.Deadline())
-
-	nextID, err := matchingStub.GetNextProfile(ctx, &matchingpb.IdReqResp{ID: selfID})
+func (s *server) GetNextProfile(ctx context.Context, in *pb.IdRequest) (*pb.Profile, error) {
+	nextProfileId, err := matchingStub.GetNextProfile(ctx, in)
 	if err != nil {
 		fmt.Println("GetNextProfile error, ", err)
 		return nil, err
 	}
 
-	profile, err := profileStub.ReadProfile(ctx, &profilespb.IdRequest{
-		Id: nextID.GetID(),
-	})
+	if nextProfileId.GetID() == -1 {
+		return &pb.Profile{ID: -1}, nil
+	}
+
+	profile, err := profileStub.ReadProfile(ctx, &pb.IdRequest{Id: nextProfileId.GetID()})
 	if err != nil {
-		fmt.Println("ReadProfile error, ", err)
+		fmt.Println("ReadProfile (getnext) error, ", err)
 		return nil, err
 	}
-	profileGW := &gatewaypb.Profile{
-		ID:          profile.ID,
-		Name:        profile.Name,
-		Age:         profile.Age,
-		Description: profile.Description,
-		Location:    profile.Location,
-	}
 
-	return profileGW, nil
+	return profile, nil
 }
 
-func (s *server) Like(ctx context.Context, in *gatewaypb.TargetRequest) (*gatewaypb.ErrorResponse, error) {
-	arg := &likespb.TargetRequest{
+func (s *server) Like(ctx context.Context, in *pb.TargetRequest) (*pb.ErrorResponse, error) {
+	arg := &pb.TargetRequest{
 		Id:    in.Id,
 		TgtId: in.TgtId,
 	}
-	result, err := likeStub.Like(ctx, arg)
+	result, err := likesStub.Like(ctx, arg)
 	if err != nil {
 		fmt.Println("Like error: ", err)
 		return nil, err
 	}
 
-	resultGW := &gatewaypb.ErrorResponse{ErrorMessage: result.ErrorMessage}
+	resultGW := &pb.ErrorResponse{ErrorMessage: result.ErrorMessage}
 
 	return resultGW, nil
 }
 
-func (s *server) GetLikes(ctx context.Context, in *gatewaypb.IdRequest) (*gatewaypb.LikesResponse, error) {
-	arg := &likespb.IdRequest{Id: in.Id}
+func (s *server) GetLikes(ctx context.Context, in *pb.IdRequest) (*pb.LikesResponse, error) {
+	arg := &pb.IdRequest{Id: in.Id}
 
-	result, err := likeStub.GetLikes(ctx, arg)
+	result, err := likesStub.GetLikes(ctx, arg)
 
 	if err != nil {
 		fmt.Println("GetLikes error, ", err)
 		return nil, err
 	}
 
-	likesGW := make([]*gatewaypb.Profile, 0)
-
-	for _, like := range result.Likes {
-		profile := &gatewaypb.Profile{
-			ID:          like.ID,
-			Name:        like.Name,
-			Age:         like.Age,
-			Description: like.Description,
-			Location:    like.Location,
-		}
-		likesGW = append(likesGW, profile)
-	}
-
-	resultGW := &gatewaypb.LikesResponse{Likes: likesGW}
-	return resultGW, nil
+	return result, nil
 }
 
 func main() {
-	matchingConn, err := grpc.Dial("localhost:50051")
+	matchingConn, err := grpc.Dial(net.JoinHostPort("localhost", os.Getenv("MATCHING_PORT")))
 	if err != nil {
 		log.Fatalln("Cannot connect to matching, ", err)
 	}
-	matchingStub = matchingpb.NewMatchingServiceClient(matchingConn)
+	matchingStub = pb.NewProfileServiceClient(matchingConn)
 
-	profileConn, err := grpc.Dial("localhost:50052")
+	profileConn, err := grpc.Dial(net.JoinHostPort("localhost", os.Getenv("PROFILES_PORT")))
 	if err != nil {
 		log.Fatalln("Cannot connect to profile, ", err)
 	}
-	profileStub = profilespb.NewProfileServiceClient(profileConn)
+	profileStub = pb.NewProfileServiceClient(profileConn)
 
-	likeConn, err := grpc.Dial("localhost:50053")
+	likeConn, err := grpc.Dial(net.JoinHostPort("localhost", os.Getenv("LIKES_PORT")))
 	if err != nil {
 		log.Fatalln("Cannot connect to likes, ", err)
 	}
-	likeStub = likespb.NewLikeServiceClient(likeConn)
+	likesStub = pb.NewProfileServiceClient(likeConn)
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", 50050))
+	lis, err := net.Listen("tcp", net.JoinHostPort("localhost", os.Getenv("GATEWAY_PORT")))
 	if err != nil {
 		fmt.Println("Failed to listen:", err)
 		return
@@ -182,8 +126,8 @@ func main() {
 
 	s := grpc.NewServer()
 
-	gatewaypb.RegisterProfileServiceServer(s, &server{})
-	fmt.Println("Server started at port", 50050)
+	pb.RegisterProfileServiceServer(s, &server{})
+	fmt.Println("Server started at port", os.Getenv("GATEWAY_PORT"))
 
 	if err := s.Serve(lis); err != nil {
 		fmt.Println("Failed to serve:", err)

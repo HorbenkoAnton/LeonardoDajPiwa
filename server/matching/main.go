@@ -19,17 +19,17 @@ type server struct {
 
 var pg *pgxpool.Pool
 
-func (s *server) GetNextProfile(_ context.Context, in *pb.IdReqResp) (*pb.IdReqResp, error) {
+func (s *server) GetNextProfile(_ context.Context, in *pb.IdRequest) (*pb.Profile, error) {
 	id, err := cache.GetNext(pg, in.GetID())
 	if err != nil {
 		if errors.Is(err, cache.ErrNotFound) {
-			return &pb.IdReqResp{ID: -1}, nil
+			return &pb.Profile{ID: -1}, nil
 		}
 		log.Printf("Error getting next profile: %v\n", err)
 		return nil, err
 	}
 
-	return &pb.IdReqResp{ID: int64(id)}, nil
+	return &pb.Profile{ID: int64(id)}, nil
 }
 
 func main() {
