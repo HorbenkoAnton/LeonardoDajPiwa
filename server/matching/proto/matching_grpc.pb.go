@@ -28,7 +28,7 @@ const (
 type MatchingServiceClient interface {
 	// Returns next profile to display,
 	// returns ID = -1 if no profiles found in given location
-	GetNextProfile(ctx context.Context, in *IdReqResp, opts ...grpc.CallOption) (*IdReqResp, error)
+	GetNextProfile(ctx context.Context, in *IdRequest, opts ...grpc.CallOption) (*Profile, error)
 }
 
 type matchingServiceClient struct {
@@ -39,8 +39,8 @@ func NewMatchingServiceClient(cc grpc.ClientConnInterface) MatchingServiceClient
 	return &matchingServiceClient{cc}
 }
 
-func (c *matchingServiceClient) GetNextProfile(ctx context.Context, in *IdReqResp, opts ...grpc.CallOption) (*IdReqResp, error) {
-	out := new(IdReqResp)
+func (c *matchingServiceClient) GetNextProfile(ctx context.Context, in *IdRequest, opts ...grpc.CallOption) (*Profile, error) {
+	out := new(Profile)
 	err := c.cc.Invoke(ctx, MatchingService_GetNextProfile_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (c *matchingServiceClient) GetNextProfile(ctx context.Context, in *IdReqRes
 type MatchingServiceServer interface {
 	// Returns next profile to display,
 	// returns ID = -1 if no profiles found in given location
-	GetNextProfile(context.Context, *IdReqResp) (*IdReqResp, error)
+	GetNextProfile(context.Context, *IdRequest) (*Profile, error)
 	mustEmbedUnimplementedMatchingServiceServer()
 }
 
@@ -62,7 +62,7 @@ type MatchingServiceServer interface {
 type UnimplementedMatchingServiceServer struct {
 }
 
-func (UnimplementedMatchingServiceServer) GetNextProfile(context.Context, *IdReqResp) (*IdReqResp, error) {
+func (UnimplementedMatchingServiceServer) GetNextProfile(context.Context, *IdRequest) (*Profile, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNextProfile not implemented")
 }
 func (UnimplementedMatchingServiceServer) mustEmbedUnimplementedMatchingServiceServer() {}
@@ -79,7 +79,7 @@ func RegisterMatchingServiceServer(s grpc.ServiceRegistrar, srv MatchingServiceS
 }
 
 func _MatchingService_GetNextProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IdReqResp)
+	in := new(IdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func _MatchingService_GetNextProfile_Handler(srv interface{}, ctx context.Contex
 		FullMethod: MatchingService_GetNextProfile_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MatchingServiceServer).GetNextProfile(ctx, req.(*IdReqResp))
+		return srv.(MatchingServiceServer).GetNextProfile(ctx, req.(*IdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
