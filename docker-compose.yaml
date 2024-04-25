@@ -1,0 +1,39 @@
+# TODO: add .env files
+version: '3'
+
+services:
+  gateway:
+    build:
+      context: ./server/gateway
+      dockerfile: Dockerfile
+    ports:
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+    volumes:
+      - ./server/gateway:/app
+
+  likes:
+    build:
+      context: ./server/likes
+      dockerfile: Dockerfile
+    ports:
+      - "${LIKES_PORT}:${LIKES_PORT}"
+    volumes:
+      - ./server/likes:/app
+
+  matching:
+    build:
+      context: ./server/matching
+      dockerfile: Dockerfile
+    ports:
+      - "${MATCHING_PORT}:${MATCHING_PORT}"
+    volumes:
+      - ./server/matching:/app
+
+  profiles:
+    build:
+      context: ./server/profiles
+      dockerfile: Dockerfile
+    ports:
+      - "${PROFILES_PORT}:${PROFILES_PORT}"
+    volumes:
+      - ./server/profiles:/app
