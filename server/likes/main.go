@@ -5,10 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
+	lm "likes/migrations"
 	pb "likes/proto"
 	"log"
 	"net"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -36,7 +40,7 @@ func (s *server) Like(_ context.Context, in *pb.TargetRequest) (*pb.ErrorRespons
 	}
 
 	if rowsAffected := result.RowsAffected(); rowsAffected == 0 {
-		return &pb.ErrorResponse{ErrorMessage: "the like already exists"}, nil
+		return &pb.ErrorResponse{ErrorMessage: "like already exists"}, nil
 	}
 
 	return &pb.ErrorResponse{ErrorMessage: "OK"}, nil
@@ -77,23 +81,44 @@ func (s *server) GetLikes(_ context.Context, in *pb.IdRequest) (*pb.LikesRespons
 }
 
 func main() {
-	pgconn, err := pgxpool.New(context.Background(), "postgres://postgres:password@localhost:5432/db_likes")
+	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASS"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+	)
+
+	pgconn, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
 	pg = pgconn
+	db := stdlib.OpenDBFromPool(pg)
+
+	reload, err := strconv.ParseBool(os.Getenv("DB_RELOAD"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	lm.Migrate(reload, db)
 
 	srv := grpc.NewServer()
 	pb.RegisterLikeServiceServer(srv, &server{})
 
-	lis, err2 := net.Listen("tcp", ":50051")
-	if err2 != nil {
-		log.Fatalf("failed to listen: %v", err)
+	port := os.Getenv("LIKES_PORT")
+	if port == "" {
+		log.Fatalf("Error: port not provided, add LIKES_PORT env var")
 	}
 
-	fmt.Println("Server is running on port :50051")
+	lis, err2 := net.Listen("tcp", ":"+port)
+	if err2 != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	fmt.Println("likes server started")
 
 	if err = srv.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.Fatalf("Failed to serve: %v", err)
 	}
 }
