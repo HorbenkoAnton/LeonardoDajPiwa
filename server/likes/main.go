@@ -7,11 +7,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
+	el "likes/env"
 	lm "likes/migrations"
 	pb "likes/proto"
 	"log"
 	"net"
-	"os"
 	"strconv"
 	"time"
 )
@@ -82,11 +82,11 @@ func (s *server) GetLikes(_ context.Context, in *pb.IdRequest) (*pb.LikesRespons
 
 func main() {
 	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASS"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
+		el.LoadEnvVar("DB_USER"),
+		el.LoadEnvVar("DB_PASS"),
+		el.LoadEnvVar("DB_HOST"),
+		el.LoadEnvVar("DB_PORT"),
+		el.LoadEnvVar("DB_NAME"),
 	)
 
 	pgconn, err := pgxpool.New(context.Background(), connStr)
@@ -96,9 +96,9 @@ func main() {
 	pg = pgconn
 	db := stdlib.OpenDBFromPool(pg)
 
-	reload, err := strconv.ParseBool(os.Getenv("DB_RELOAD"))
+	reload, err := strconv.ParseBool(el.LoadEnvVar("DB_RELOAD"))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to parse bool env var: %v", err)
 	}
 
 	lm.Migrate(reload, db)
@@ -106,13 +106,8 @@ func main() {
 	srv := grpc.NewServer()
 	pb.RegisterLikeServiceServer(srv, &server{})
 
-	port := os.Getenv("LIKES_PORT")
-	if port == "" {
-		log.Fatalf("Error: port not provided, add LIKES_PORT env var")
-	}
-
-	lis, err2 := net.Listen("tcp", ":"+port)
-	if err2 != nil {
+	lis, err := net.Listen("tcp", ":"+el.LoadEnvVar("LIKES_PORT"))
+	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 

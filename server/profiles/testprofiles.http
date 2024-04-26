@@ -1,15 +1,15 @@
-GRPC localhost:50051/proto.ProfileService/UpdateProfile
+GRPC localhost:50051/proto.ProfileService/CreateProfile
 
 
-//{
-//  "profile": {
-//    "ID": 423425,
-//    "name": "хуй",
-//    "age": 17,
-//    "description": "ЛЮБЛЮ САСАТЬ ХУЙ",
-//    "location": "Киев"
-//  }
-//}
+{
+  "profile": {
+    "ID": 423425,
+    "name": "John Doe",
+    "age": 17,
+    "description": "Love Kiyv<3",
+    "location": "Киев"
+  }
+}
 
 
 //{

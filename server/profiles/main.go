@@ -12,7 +12,7 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
+	el "profiles/env"
 	pm "profiles/migrations"
 	pb "profiles/proto"
 	"strconv"
@@ -34,8 +34,7 @@ type CityResponse struct {
 }
 
 func GetCity(city string) ([]string, error) {
-	url := os.Getenv("GEO_API_URL")
-	url = fmt.Sprintf(url, city)
+	url := fmt.Sprintf(el.LoadEnvVar("GEO_API_URL"), city)
 
 	response, err := http.Get(url)
 	if err != nil {
@@ -137,11 +136,11 @@ func (s server) UpdateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 
 func main() {
 	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASS"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
+		el.LoadEnvVar("DB_USER"),
+		el.LoadEnvVar("DB_PASS"),
+		el.LoadEnvVar("DB_HOST"),
+		el.LoadEnvVar("DB_PORT"),
+		el.LoadEnvVar("DB_NAME"),
 	)
 
 	pgconn, err := pgxpool.New(context.Background(), connStr)
@@ -151,9 +150,9 @@ func main() {
 	pg = pgconn
 	db := stdlib.OpenDBFromPool(pg)
 
-	reload, err := strconv.ParseBool(os.Getenv("DB_RELOAD"))
+	reload, err := strconv.ParseBool(el.LoadEnvVar("DB_RELOAD"))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to parse bool env var: %v", err)
 	}
 
 	pm.Migrate(reload, db)
@@ -161,12 +160,7 @@ func main() {
 	srv := grpc.NewServer()
 	pb.RegisterProfileServiceServer(srv, &server{})
 
-	port := os.Getenv("PROFILES_PORT")
-	if port == "" {
-		log.Fatalf("Error: port not provided, add PROFILES_PORT env var")
-	}
-
-	lis, err := net.Listen("tcp", ":"+port)
+	lis, err := net.Listen("tcp", ":"+el.LoadEnvVar("PROFILES_PORT"))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
