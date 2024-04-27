@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package matching;
+package proto;
 
-service MatchingService {
+service ProfileService{
     // Returns next profile to display,
     // returns ID = -1 if no profiles found in given location
     rpc GetNextProfile (IdRequest) returns (Profile);

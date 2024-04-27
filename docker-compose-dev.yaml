@@ -34,6 +34,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: on-failure
 
   matching:
     build:
@@ -54,3 +55,4 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: on-failure

@@ -14,7 +14,7 @@ import (
 )
 
 type server struct {
-	pb.UnimplementedMatchingServiceServer
+	pb.UnimplementedProfileServiceServer
 }
 
 var pg *pgxpool.Pool
@@ -48,7 +48,7 @@ func main() {
 	pg = pgconn
 
 	srv := grpc.NewServer()
-	pb.RegisterMatchingServiceServer(srv, &server{})
+	pb.RegisterProfileServiceServer(srv, &server{})
 
 	port := env.LoadEnvVar("MATCHING_PORT")
 
