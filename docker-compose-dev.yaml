@@ -8,6 +8,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: db
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   gateway:
     build:
       context: ./server/gateway
@@ -16,6 +21,9 @@ services:
       - "50051:50051"
     env_file:
       - server/.env
+    depends_on:
+      db:
+        condition: service_healthy
 
   likes:
     build:
@@ -23,6 +31,9 @@ services:
       dockerfile: Dockerfile
     env_file:
       - server/.env
+    depends_on:
+      db:
+        condition: service_healthy
 
   matching:
     build:
@@ -30,6 +41,9 @@ services:
       dockerfile: Dockerfile
     env_file:
       - server/.env
+    depends_on:
+      db:
+        condition: service_healthy
 
   profiles:
     build:
@@ -37,3 +51,6 @@ services:
       dockerfile: Dockerfile
     env_file:
       - server/.env
+    depends_on:
+      db:
+        condition: service_healthy
