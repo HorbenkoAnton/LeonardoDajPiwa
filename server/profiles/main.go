@@ -7,13 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
+	"github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	"log"
 	"net"
 	"net/http"
-	"os"
+	el "profiles/env"
+	pm "profiles/migrations"
 	pb "profiles/proto"
+	"strconv"
 	"time"
 )
 
@@ -32,11 +34,7 @@ type CityResponse struct {
 }
 
 func GetCity(city string) ([]string, error) {
-	if err := godotenv.Load(".env"); err != nil {
-		return nil, err
-	}
-	url := os.Getenv("GEO_API_URL")
-	url = fmt.Sprintf(url, city)
+	url := fmt.Sprintf(el.LoadEnvVar("GEO_API_URL"), city)
 
 	response, err := http.Get(url)
 	if err != nil {
@@ -137,23 +135,39 @@ func (s server) UpdateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 }
 
 func main() {
-	pgconn, err := pgxpool.New(context.Background(), "postgres://postgres:password@localhost:5432/db_profiles")
+	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
+		el.LoadEnvVar("DB_USER"),
+		el.LoadEnvVar("DB_PASS"),
+		el.LoadEnvVar("DB_HOST"),
+		el.LoadEnvVar("DB_PORT"),
+		el.LoadEnvVar("DB_NAME"),
+	)
+
+	pgconn, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
 	pg = pgconn
+	db := stdlib.OpenDBFromPool(pg)
+
+	reload, err := strconv.ParseBool(el.LoadEnvVar("DB_RELOAD"))
+	if err != nil {
+		log.Fatalf("Failed to parse bool env var: %v", err)
+	}
+
+	pm.Migrate(reload, db)
 
 	srv := grpc.NewServer()
 	pb.RegisterProfileServiceServer(srv, &server{})
 
-	lis, err := net.Listen("tcp", ":50051")
+	lis, err := net.Listen("tcp", ":"+el.LoadEnvVar("PROFILES_PORT"))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	fmt.Println("Server is running on port :50051")
+	fmt.Println("profiles server started")
 
 	if err = srv.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.Fatalf("Failed to serve: %v", err)
 	}
 }

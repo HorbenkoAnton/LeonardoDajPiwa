@@ -34,11 +34,11 @@ func (s *server) GetNextProfile(_ context.Context, in *pb.IdRequest) (*pb.Profil
 
 func main() {
 	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
-		os.Getenv("PG_USER"),
-		os.Getenv("PG_PASS"),
-		os.Getenv("PG_HOST"),
-		os.Getenv("PG_PORT"),
-		os.Getenv("PG_DB"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASS"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
 	)
 
 	pgconn, err := pgxpool.New(context.Background(), connStr)
@@ -57,13 +57,13 @@ func main() {
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	log.Println("Server started")
+	log.Println("matching server started")
 	go cache.InvalidateCache()
 
 	if err := srv.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.Fatalf("Failed to serve: %v", err)
 	}
 }
