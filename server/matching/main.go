@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"matching/cache"
+	"matching/env"
 	pb "matching/proto"
 	"net"
-	"os"
 )
 
 type server struct {
@@ -34,11 +34,11 @@ func (s *server) GetNextProfile(_ context.Context, in *pb.IdRequest) (*pb.Profil
 
 func main() {
 	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASS"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
+		env.LoadEnvVar("DB_USER"),
+		env.LoadEnvVar("DB_PASS"),
+		env.LoadEnvVar("DB_HOST"),
+		env.LoadEnvVar("DB_PORT"),
+		env.LoadEnvVar("DB_NAME"),
 	)
 
 	pgconn, err := pgxpool.New(context.Background(), connStr)
@@ -50,10 +50,7 @@ func main() {
 	srv := grpc.NewServer()
 	pb.RegisterMatchingServiceServer(srv, &server{})
 
-	port := os.Getenv("MATCHING_PORT")
-	if port == "" {
-		log.Fatalf("Error: port not provided, add MATCHING_PORT env var")
-	}
+	port := env.LoadEnvVar("MATCHING_PORT")
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
