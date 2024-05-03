@@ -34,7 +34,10 @@ type CityResponse struct {
 }
 
 func GetCity(city string) ([]string, error) {
-	url := fmt.Sprintf(el.LoadEnvVar("GEO_API_URL"), city)
+	url := fmt.Sprintf("https://geocode.maps.co/search?q=%v&api_key=%v",
+		city,
+		el.LoadEnvVar("GEO_API_KEY"),
+	)
 
 	response, err := http.Get(url)
 	if err != nil {

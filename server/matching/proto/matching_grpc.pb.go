@@ -19,93 +19,93 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	MatchingService_GetNextProfile_FullMethodName = "/matching.MatchingService/GetNextProfile"
+	ProfileService_GetNextProfile_FullMethodName = "/proto.ProfileService/GetNextProfile"
 )
 
-// MatchingServiceClient is the client API for MatchingService service.
+// ProfileServiceClient is the client API for ProfileService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type MatchingServiceClient interface {
+type ProfileServiceClient interface {
 	// Returns next profile to display,
 	// returns ID = -1 if no profiles found in given location
-	GetNextProfile(ctx context.Context, in *IdReqResp, opts ...grpc.CallOption) (*IdReqResp, error)
+	GetNextProfile(ctx context.Context, in *IdRequest, opts ...grpc.CallOption) (*Profile, error)
 }
 
-type matchingServiceClient struct {
+type profileServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewMatchingServiceClient(cc grpc.ClientConnInterface) MatchingServiceClient {
-	return &matchingServiceClient{cc}
+func NewProfileServiceClient(cc grpc.ClientConnInterface) ProfileServiceClient {
+	return &profileServiceClient{cc}
 }
 
-func (c *matchingServiceClient) GetNextProfile(ctx context.Context, in *IdReqResp, opts ...grpc.CallOption) (*IdReqResp, error) {
-	out := new(IdReqResp)
-	err := c.cc.Invoke(ctx, MatchingService_GetNextProfile_FullMethodName, in, out, opts...)
+func (c *profileServiceClient) GetNextProfile(ctx context.Context, in *IdRequest, opts ...grpc.CallOption) (*Profile, error) {
+	out := new(Profile)
+	err := c.cc.Invoke(ctx, ProfileService_GetNextProfile_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// MatchingServiceServer is the server API for MatchingService service.
-// All implementations must embed UnimplementedMatchingServiceServer
+// ProfileServiceServer is the server API for ProfileService service.
+// All implementations must embed UnimplementedProfileServiceServer
 // for forward compatibility
-type MatchingServiceServer interface {
+type ProfileServiceServer interface {
 	// Returns next profile to display,
 	// returns ID = -1 if no profiles found in given location
-	GetNextProfile(context.Context, *IdReqResp) (*IdReqResp, error)
-	mustEmbedUnimplementedMatchingServiceServer()
+	GetNextProfile(context.Context, *IdRequest) (*Profile, error)
+	mustEmbedUnimplementedProfileServiceServer()
 }
 
-// UnimplementedMatchingServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedMatchingServiceServer struct {
+// UnimplementedProfileServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedProfileServiceServer struct {
 }
 
-func (UnimplementedMatchingServiceServer) GetNextProfile(context.Context, *IdReqResp) (*IdReqResp, error) {
+func (UnimplementedProfileServiceServer) GetNextProfile(context.Context, *IdRequest) (*Profile, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNextProfile not implemented")
 }
-func (UnimplementedMatchingServiceServer) mustEmbedUnimplementedMatchingServiceServer() {}
+func (UnimplementedProfileServiceServer) mustEmbedUnimplementedProfileServiceServer() {}
 
-// UnsafeMatchingServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to MatchingServiceServer will
+// UnsafeProfileServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ProfileServiceServer will
 // result in compilation errors.
-type UnsafeMatchingServiceServer interface {
-	mustEmbedUnimplementedMatchingServiceServer()
+type UnsafeProfileServiceServer interface {
+	mustEmbedUnimplementedProfileServiceServer()
 }
 
-func RegisterMatchingServiceServer(s grpc.ServiceRegistrar, srv MatchingServiceServer) {
-	s.RegisterService(&MatchingService_ServiceDesc, srv)
+func RegisterProfileServiceServer(s grpc.ServiceRegistrar, srv ProfileServiceServer) {
+	s.RegisterService(&ProfileService_ServiceDesc, srv)
 }
 
-func _MatchingService_GetNextProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IdReqResp)
+func _ProfileService_GetNextProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MatchingServiceServer).GetNextProfile(ctx, in)
+		return srv.(ProfileServiceServer).GetNextProfile(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: MatchingService_GetNextProfile_FullMethodName,
+		FullMethod: ProfileService_GetNextProfile_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MatchingServiceServer).GetNextProfile(ctx, req.(*IdReqResp))
+		return srv.(ProfileServiceServer).GetNextProfile(ctx, req.(*IdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// MatchingService_ServiceDesc is the grpc.ServiceDesc for MatchingService service.
+// ProfileService_ServiceDesc is the grpc.ServiceDesc for ProfileService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var MatchingService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "matching.MatchingService",
-	HandlerType: (*MatchingServiceServer)(nil),
+var ProfileService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.ProfileService",
+	HandlerType: (*ProfileServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "GetNextProfile",
-			Handler:    _MatchingService_GetNextProfile_Handler,
+			Handler:    _ProfileService_GetNextProfile_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

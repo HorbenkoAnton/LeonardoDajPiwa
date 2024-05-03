@@ -23,7 +23,7 @@ var (
 const Timeout = 60 * time.Second
 
 type server struct {
-	pb.UnsafeLikeServiceServer
+	pb.UnimplementedProfileServiceServer
 }
 
 func (s *server) Like(_ context.Context, in *pb.TargetRequest) (*pb.ErrorResponse, error) {
@@ -104,7 +104,7 @@ func main() {
 	lm.Migrate(reload, db)
 
 	srv := grpc.NewServer()
-	pb.RegisterLikeServiceServer(srv, &server{})
+	pb.RegisterProfileServiceServer(srv, &server{})
 
 	lis, err := net.Listen("tcp", ":"+el.LoadEnvVar("LIKES_PORT"))
 	if err != nil {

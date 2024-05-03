@@ -8,37 +8,37 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"matching/cache"
+	"matching/env"
 	pb "matching/proto"
 	"net"
-	"os"
 )
 
 type server struct {
-	pb.UnimplementedMatchingServiceServer
+	pb.UnimplementedProfileServiceServer
 }
 
 var pg *pgxpool.Pool
 
-func (s *server) GetNextProfile(_ context.Context, in *pb.IdReqResp) (*pb.IdReqResp, error) {
+func (s *server) GetNextProfile(_ context.Context, in *pb.IdRequest) (*pb.Profile, error) {
 	id, err := cache.GetNext(pg, in.GetID())
 	if err != nil {
 		if errors.Is(err, cache.ErrNotFound) {
-			return &pb.IdReqResp{ID: -1}, nil
+			return &pb.Profile{ID: -1}, nil
 		}
 		log.Printf("Error getting next profile: %v\n", err)
 		return nil, err
 	}
 
-	return &pb.IdReqResp{ID: int64(id)}, nil
+	return &pb.Profile{ID: int64(id)}, nil
 }
 
 func main() {
 	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASS"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
+		env.LoadEnvVar("DB_USER"),
+		env.LoadEnvVar("DB_PASS"),
+		env.LoadEnvVar("DB_HOST"),
+		env.LoadEnvVar("DB_PORT"),
+		env.LoadEnvVar("DB_NAME"),
 	)
 
 	pgconn, err := pgxpool.New(context.Background(), connStr)
@@ -48,12 +48,9 @@ func main() {
 	pg = pgconn
 
 	srv := grpc.NewServer()
-	pb.RegisterMatchingServiceServer(srv, &server{})
+	pb.RegisterProfileServiceServer(srv, &server{})
 
-	port := os.Getenv("MATCHING_PORT")
-	if port == "" {
-		log.Fatalf("Error: port not provided, add MATCHING_PORT env var")
-	}
+	port := env.LoadEnvVar("MATCHING_PORT")
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
