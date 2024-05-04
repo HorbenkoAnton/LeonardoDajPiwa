@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	el "likes/env"
-	lm "likes/migrations"
 	pb "likes/proto"
 	"log"
 	"net"
-	"strconv"
 	"time"
 )
 
@@ -94,14 +91,6 @@ func main() {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
 	pg = pgconn
-	db := stdlib.OpenDBFromPool(pg)
-
-	reload, err := strconv.ParseBool(el.LoadEnvVar("DB_RELOAD"))
-	if err != nil {
-		log.Fatalf("Failed to parse bool env var: %v", err)
-	}
-
-	lm.Migrate(reload, db)
 
 	srv := grpc.NewServer()
 	pb.RegisterProfileServiceServer(srv, &server{})
