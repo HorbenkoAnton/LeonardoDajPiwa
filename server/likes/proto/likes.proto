@@ -9,6 +9,7 @@ message Profile {
     int32 age = 3;
     string description = 4;
     string location = 5;
+    string pfp = 6;
 }
 
 service ProfileService{
