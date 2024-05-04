@@ -79,11 +79,12 @@ func (s server) CreateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 		return &pb.ErrorResponse{ErrorMessage: "error getting city"}, err
 	}
 
-	if _, err := pg.Exec(ctx, "INSERT INTO profiles (id, name, age, description, user_location, location) VALUES ($1, $2, $3, $4, $5, $6)",
+	if _, err := pg.Exec(ctx, "INSERT INTO profiles (id, name, age, description, pfp_id, user_location, location) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		request.Profile.ID,
 		request.Profile.Name,
 		request.Profile.Age,
 		request.Profile.Description,
+		request.Profile.Pfp,
 		request.Profile.Location,
 		responseCity,
 	); err != nil {
@@ -98,11 +99,12 @@ func (s server) ReadProfile(_ context.Context, request *pb.IdRequest) (*pb.Profi
 	defer cancel()
 
 	var profile pb.Profile
-	if err := pg.QueryRow(ctx, "SELECT id, name, age, description, user_location FROM profiles WHERE id=$1", request.Id).Scan(
+	if err := pg.QueryRow(ctx, "SELECT id, name, age, description, pfp_id, user_location FROM profiles WHERE id=$1", request.Id).Scan(
 		&profile.ID,
 		&profile.Name,
 		&profile.Age,
 		&profile.Description,
+		&profile.Pfp,
 		&profile.Location,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -123,10 +125,11 @@ func (s server) UpdateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 		return &pb.ErrorResponse{ErrorMessage: "error in parsing city"}, err
 	}
 
-	if _, err = pg.Exec(ctx, "UPDATE profiles SET name = $1, age = $2, description = $3, user_location = $4, location = $5  WHERE id=$6",
+	if _, err = pg.Exec(ctx, "UPDATE profiles SET name = $1, age = $2, description = $3, pfp_id=$4, user_location = $5, location = $6  WHERE id=$7",
 		request.Profile.Name,
 		request.Profile.Age,
 		request.Profile.Description,
+		request.Profile.Pfp,
 		request.Profile.Location,
 		responseCity,
 		request.Profile.ID,

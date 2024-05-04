@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	goose.AddMigration(up, down)
+	goose.AddMigration(upProfilesTable, downProfilesTable)
 }
 
-func up(tx *sql.Tx) error {
+func upProfilesTable(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS profiles (
@@ -17,6 +17,7 @@ func up(tx *sql.Tx) error {
 			name VARCHAR(256),
 			age INT,
 			description VARCHAR(256),
+		    pfp_id VARCHAR(256),
 			user_location VARCHAR(256),
 			location TEXT ARRAY
 		)
@@ -27,7 +28,7 @@ func up(tx *sql.Tx) error {
 	return nil
 }
 
-func down(tx *sql.Tx) error {
+func downProfilesTable(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(`DROP TABLE profiles`); err != nil {
 		return err
