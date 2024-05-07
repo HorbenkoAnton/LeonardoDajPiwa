@@ -19,10 +19,11 @@ const Timeout = 10 * time.Second
 var ErrNotFound = errors.New("no rows in result set")
 
 type Cache struct {
-	queue      []int64
-	lastAccess time.Time
-	location   []string
-	currIndex  int
+	queue          []int64
+	lastAccess     time.Time
+	location       []string
+	currIndex      int
+	lastReturnedId int64
 }
 
 var cacheMap = make(map[int64]Cache)
@@ -55,7 +56,14 @@ func GetNext(db *pgxpool.Pool, self int64) (int64, error) {
 	selfCache.lastAccess = time.Now()
 
 	id := selfCache.queue[0]
+
+	// Experimental fix
+	if id == selfCache.lastReturnedId {
+		delete(cacheMap, self)
+		return GetNext(db, self)
+	}
 	selfCache.queue = selfCache.queue[1:]
+	selfCache.lastReturnedId = id
 
 	cacheMap[self] = selfCache
 	return id, nil
