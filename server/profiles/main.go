@@ -16,6 +16,7 @@ import (
 	pm "profiles/migrations"
 	pb "profiles/proto"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -49,15 +50,12 @@ func GetCity(city string) ([]string, error) {
 		return nil, fmt.Errorf("incorrect status code: %s", response.Status)
 	}
 
-	var cityResponse []CityResponse
+	var cityResponse []*CityResponse
 	if err := json.NewDecoder(response.Body).Decode(&cityResponse); err != nil {
 		return nil, err
 	}
 
-	displayNames := make([]string, len(cityResponse))
-	for i, city := range cityResponse {
-		displayNames[i] = city.DisplayName
-	}
+	displayNames := strings.Split(cityResponse[0].DisplayName, ", ")
 
 	if len(displayNames) <= 0 {
 		return nil, err
@@ -171,7 +169,7 @@ func main() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	fmt.Println("profiles server started")
+	log.Println("profiles server started")
 
 	if err = srv.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)

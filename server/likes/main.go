@@ -100,7 +100,7 @@ func main() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	fmt.Println("likes server started")
+	log.Println("likes server started")
 
 	if err = srv.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)

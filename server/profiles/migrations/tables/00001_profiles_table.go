@@ -13,12 +13,12 @@ func upProfilesTable(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS profiles (
-			id INT PRIMARY KEY,
-			name VARCHAR(256),
+			id BIGINT PRIMARY KEY,
+			name TEXT,
 			age INT,
-			description VARCHAR(256),
-		    pfp_id VARCHAR(256),
-			user_location VARCHAR(256),
+			description TEXT,
+		    pfp_id TEXT,
+			user_location TEXT,
 			location TEXT ARRAY
 		)
 	`); err != nil {
