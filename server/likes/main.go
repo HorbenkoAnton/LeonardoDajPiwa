@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	el "likes/env"
+	"likes/lib/logger"
 	pb "likes/proto"
-	"log"
+	"log/slog"
 	"net"
+	"os"
 	"time"
 )
 
@@ -20,6 +21,7 @@ var (
 const Timeout = 60 * time.Second
 
 type server struct {
+	logger *slog.Logger
 	pb.UnimplementedProfileServiceServer
 }
 
@@ -28,16 +30,18 @@ func (s *server) Like(_ context.Context, in *pb.TargetRequest) (*pb.ErrorRespons
 	defer cancel()
 
 	if in.GetTgtId() == 0 || in.GetId() == 0 {
+		s.logger.Error("empty id or target id")
 		return &pb.ErrorResponse{ErrorMessage: "empty target id"}, nil
 	}
 
 	result, err := pg.Exec(ctx, "INSERT INTO likes (liker, liked) VALUES ($1, $2) ON CONFLICT (liker, liked) DO NOTHING", in.GetId(), in.GetTgtId())
 	if err != nil {
+		s.logger.Error("failed to insert into likes", slog.Int64("id", in.GetId()), slog.Int64("target_id", in.GetTgtId()), slog.String("error", err.Error()))
 		return &pb.ErrorResponse{ErrorMessage: err.Error()}, nil
 	}
 
 	if rowsAffected := result.RowsAffected(); rowsAffected == 0 {
-		return &pb.ErrorResponse{ErrorMessage: "like already exists"}, nil
+		s.logger.Info("like already exists")
 	}
 
 	return &pb.ErrorResponse{ErrorMessage: "OK"}, nil
@@ -47,12 +51,9 @@ func (s *server) GetLikes(_ context.Context, in *pb.IdRequest) (*pb.LikesRespons
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 
-	if in.GetId() == 0 {
-		return &pb.LikesResponse{}, errors.New("empty id")
-	}
-
 	rows, err := pg.Query(ctx, "SELECT * FROM likes WHERE liked = $1", in.GetId())
 	if err != nil {
+		s.logger.Error("failed to select from likes", slog.Int64("id", in.GetId()), slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -60,6 +61,7 @@ func (s *server) GetLikes(_ context.Context, in *pb.IdRequest) (*pb.LikesRespons
 	for rows.Next() {
 		var liker, liked int64
 		if err = rows.Scan(&liker, &liked); err != nil {
+			s.logger.Error("failed to scan rows in likes", slog.String("error", err.Error()))
 			return nil, err
 		}
 
@@ -71,6 +73,7 @@ func (s *server) GetLikes(_ context.Context, in *pb.IdRequest) (*pb.LikesRespons
 	}
 
 	if _, err = pg.Exec(ctx, "DELETE FROM likes WHERE liked = $1", in.GetId()); err != nil {
+		s.logger.Error("failed to delete from likes", slog.Int64("id", in.GetId()), slog.String("error: ", err.Error()))
 		return nil, err
 	}
 
@@ -78,6 +81,8 @@ func (s *server) GetLikes(_ context.Context, in *pb.IdRequest) (*pb.LikesRespons
 }
 
 func main() {
+	setupLogger := logger.SetupLogger(el.LoadEnvVar("LOG_LEVEL"))
+
 	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
 		el.LoadEnvVar("DB_USER"),
 		el.LoadEnvVar("DB_PASS"),
@@ -88,21 +93,26 @@ func main() {
 
 	pgconn, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v\n", err)
+		setupLogger.Error("unable to connect to database", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 	pg = pgconn
 
 	srv := grpc.NewServer()
-	pb.RegisterProfileServiceServer(srv, &server{})
+	pb.RegisterProfileServiceServer(srv, &server{logger: setupLogger})
 
-	lis, err := net.Listen("tcp", ":"+el.LoadEnvVar("LIKES_PORT"))
+	likesPort := el.LoadEnvVar("LIKES_PORT")
+
+	lis, err := net.Listen("tcp", ":"+likesPort)
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		setupLogger.Error("failed to listen tcp", slog.String("likes_port", likesPort), slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
-	log.Println("likes server started")
+	setupLogger.Info("likes server started")
 
 	if err = srv.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		setupLogger.Error("failed to serve", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 }
