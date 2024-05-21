@@ -16,6 +16,7 @@ import (
 	pm "profiles/migrations"
 	pb "profiles/proto"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -49,15 +50,12 @@ func GetCity(city string) ([]string, error) {
 		return nil, fmt.Errorf("incorrect status code: %s", response.Status)
 	}
 
-	var cityResponse []CityResponse
+	var cityResponse []*CityResponse
 	if err := json.NewDecoder(response.Body).Decode(&cityResponse); err != nil {
 		return nil, err
 	}
 
-	displayNames := make([]string, len(cityResponse))
-	for i, city := range cityResponse {
-		displayNames[i] = city.DisplayName
-	}
+	displayNames := strings.Split(cityResponse[0].DisplayName, ", ")
 
 	if len(displayNames) <= 0 {
 		return nil, err
@@ -79,11 +77,12 @@ func (s server) CreateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 		return &pb.ErrorResponse{ErrorMessage: "error getting city"}, err
 	}
 
-	if _, err := pg.Exec(ctx, "INSERT INTO profiles (id, name, age, description, user_location, location) VALUES ($1, $2, $3, $4, $5, $6)",
+	if _, err := pg.Exec(ctx, "INSERT INTO profiles (id, name, age, description, pfp_id, user_location, location) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		request.Profile.ID,
 		request.Profile.Name,
 		request.Profile.Age,
 		request.Profile.Description,
+		request.Profile.Pfp,
 		request.Profile.Location,
 		responseCity,
 	); err != nil {
@@ -98,11 +97,12 @@ func (s server) ReadProfile(_ context.Context, request *pb.IdRequest) (*pb.Profi
 	defer cancel()
 
 	var profile pb.Profile
-	if err := pg.QueryRow(ctx, "SELECT id, name, age, description, user_location FROM profiles WHERE id=$1", request.Id).Scan(
+	if err := pg.QueryRow(ctx, "SELECT id, name, age, description, pfp_id, user_location FROM profiles WHERE id=$1", request.Id).Scan(
 		&profile.ID,
 		&profile.Name,
 		&profile.Age,
 		&profile.Description,
+		&profile.Pfp,
 		&profile.Location,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -123,10 +123,11 @@ func (s server) UpdateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 		return &pb.ErrorResponse{ErrorMessage: "error in parsing city"}, err
 	}
 
-	if _, err = pg.Exec(ctx, "UPDATE profiles SET name = $1, age = $2, description = $3, user_location = $4, location = $5  WHERE id=$6",
+	if _, err = pg.Exec(ctx, "UPDATE profiles SET name = $1, age = $2, description = $3, pfp_id=$4, user_location = $5, location = $6  WHERE id=$7",
 		request.Profile.Name,
 		request.Profile.Age,
 		request.Profile.Description,
+		request.Profile.Pfp,
 		request.Profile.Location,
 		responseCity,
 		request.Profile.ID,
@@ -168,7 +169,7 @@ func main() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	fmt.Println("profiles server started")
+	log.Println("profiles server started")
 
 	if err = srv.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)

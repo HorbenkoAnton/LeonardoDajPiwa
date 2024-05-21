@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	goose.AddMigration(up, down)
+	goose.AddMigration(upLikesTable, downLikesTable)
 }
 
-func up(tx *sql.Tx) error {
+func upLikesTable(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS likes (
@@ -24,7 +24,7 @@ func up(tx *sql.Tx) error {
 	return nil
 }
 
-func down(tx *sql.Tx) error {
+func downLikesTable(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(`DROP TABLE likes`); err != nil {
 		return err
