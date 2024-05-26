@@ -13,7 +13,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	el "profiles/env"
+	el "profiles/lib/env"
 	"profiles/lib/logger"
 	pm "profiles/migrations"
 	pb "profiles/proto"

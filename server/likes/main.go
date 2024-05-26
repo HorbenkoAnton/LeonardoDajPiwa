@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
-	el "likes/env"
+	el "likes/lib/env"
 	"likes/lib/logger"
 	pb "likes/proto"
 	"log/slog"

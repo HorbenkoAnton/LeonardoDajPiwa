@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"gateway/lib/env"
+	"gateway/lib/logger"
 	pb "gateway/protos/gatewaypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"time"
@@ -19,13 +20,14 @@ var (
 )
 
 type server struct {
+	logger *slog.Logger
 	pb.UnimplementedProfileServiceServer
 }
 
 func (s *server) CreateProfile(ctx context.Context, in *pb.ProfileRequest) (*pb.ErrorResponse, error) {
 	result, err := profileStub.CreateProfile(ctx, in)
 	if err != nil {
-		fmt.Println("CreateProfile error, ", err)
+		s.logger.Error("CreateProfile error, ", err)
 		return nil, err
 	}
 
@@ -35,7 +37,7 @@ func (s *server) CreateProfile(ctx context.Context, in *pb.ProfileRequest) (*pb.
 func (s *server) ReadProfile(ctx context.Context, in *pb.IdRequest) (*pb.Profile, error) {
 	profile, err := profileStub.ReadProfile(ctx, in)
 	if err != nil {
-		fmt.Println("ReadProfile error:", err)
+		s.logger.Error("ReadProfile error:", err)
 		return nil, err
 	}
 
@@ -45,7 +47,7 @@ func (s *server) ReadProfile(ctx context.Context, in *pb.IdRequest) (*pb.Profile
 func (s *server) UpdateProfile(ctx context.Context, in *pb.ProfileRequest) (*pb.ErrorResponse, error) {
 	result, err := profileStub.UpdateProfile(ctx, in)
 	if err != nil {
-		fmt.Println("UpdateProfile error:", err)
+		s.logger.Error("UpdateProfile error:", err)
 		return nil, err
 	}
 
@@ -55,7 +57,7 @@ func (s *server) UpdateProfile(ctx context.Context, in *pb.ProfileRequest) (*pb.
 func (s *server) GetNextProfile(ctx context.Context, in *pb.IdRequest) (*pb.Profile, error) {
 	nextProfileId, err := matchingStub.GetNextProfile(ctx, in)
 	if err != nil {
-		fmt.Println("GetNextProfile error, ", err)
+		s.logger.Error("GetNextProfile error, ", err)
 		return nil, err
 	}
 
@@ -65,7 +67,7 @@ func (s *server) GetNextProfile(ctx context.Context, in *pb.IdRequest) (*pb.Prof
 
 	profile, err := profileStub.ReadProfile(ctx, &pb.IdRequest{Id: nextProfileId.GetID()})
 	if err != nil {
-		fmt.Println("ReadProfile (getnext) error, ", err)
+		s.logger.Error("ReadProfile (getnext) error, ", err)
 		return nil, err
 	}
 
@@ -79,7 +81,7 @@ func (s *server) Like(ctx context.Context, in *pb.TargetRequest) (*pb.ErrorRespo
 	}
 	result, err := likesStub.Like(ctx, arg)
 	if err != nil {
-		fmt.Println("Like error: ", err)
+		s.logger.Error("Like error: ", err)
 		return nil, err
 	}
 
@@ -94,7 +96,7 @@ func (s *server) GetLikes(ctx context.Context, in *pb.IdRequest) (*pb.LikesRespo
 	result, err := likesStub.GetLikes(ctx, arg)
 
 	if err != nil {
-		fmt.Println("GetLikes error, ", err)
+		s.logger.Error("GetLikes error, ", err)
 		return nil, err
 	}
 
@@ -102,49 +104,54 @@ func (s *server) GetLikes(ctx context.Context, in *pb.IdRequest) (*pb.LikesRespo
 }
 
 func main() {
+	setupLogger := logger.SetupLogger(env.LoadEnvVar("LOG_LEVEL"))
+
 	// sleep to give services time to start
 	time.Sleep(5 * time.Second)
+
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	matchingConn, err := grpc.Dial(
-		net.JoinHostPort("matching", os.Getenv("MATCHING_PORT")),
+		net.JoinHostPort("matching", env.LoadEnvVar("MATCHING_PORT")),
 		opts)
 	if err != nil {
-		log.Fatalln("Cannot connect to matching, ", err)
+		setupLogger.Error("Cannot connect to matching, ", err)
+		os.Exit(1)
 	}
 	matchingStub = pb.NewProfileServiceClient(matchingConn)
 
 	profileConn, err := grpc.Dial(
-		net.JoinHostPort("profiles", os.Getenv("PROFILES_PORT")),
+		net.JoinHostPort("profiles", env.LoadEnvVar("PROFILES_PORT")),
 		opts)
 	if err != nil {
-		log.Fatalln("Cannot connect to profile, ", err)
+		setupLogger.Error("Cannot connect to profile, ", err)
+		os.Exit(1)
 	}
 	profileStub = pb.NewProfileServiceClient(profileConn)
 
 	likeConn, err := grpc.Dial(
-		net.JoinHostPort("likes", os.Getenv("LIKES_PORT")),
+		net.JoinHostPort("likes", env.LoadEnvVar("LIKES_PORT")),
 		opts)
 	if err != nil {
-		log.Fatalln("Cannot connect to likes, ", err)
+		setupLogger.Error("Cannot connect to likes, ", err)
+		os.Exit(1)
 	}
 	likesStub = pb.NewProfileServiceClient(likeConn)
 
 	srv := grpc.NewServer()
-	pb.RegisterProfileServiceServer(srv, &server{})
+	pb.RegisterProfileServiceServer(srv, &server{logger: setupLogger})
 
-	port := os.Getenv("GATEWAY_PORT")
-	if port == "" {
-		log.Fatalf("Error: port not provided, add GATEWAY env var")
-	}
+	port := env.LoadEnvVar("GATEWAY_PORT")
 
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		setupLogger.Error("failed to listen: %v", err)
+		os.Exit(1)
 	}
 
-	log.Println("Server started")
+	setupLogger.Info("Server started")
 
 	if err := srv.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		setupLogger.Error("failed to serve: %v", err)
+		os.Exit(1)
 	}
 }

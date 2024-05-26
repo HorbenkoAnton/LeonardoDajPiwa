@@ -18,7 +18,7 @@ func SetupLogger(logLevel string) *slog.Logger {
 	}
 
 	log = slog.New(
-		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}),
+		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
 	)
 
 	return log

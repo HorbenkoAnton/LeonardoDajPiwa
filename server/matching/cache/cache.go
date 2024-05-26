@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
@@ -83,9 +82,7 @@ func fillCache(db *pgxpool.Pool, selfID int64) error {
 	}
 
 	if self.currIndex < 1 {
-		// TODO: log critical error
-		fmt.Println("[CRITICAL] currIndex is less then 1")
-		return ErrNotFound
+		return errors.New("[CRITICAL] currIndex is less then 1")
 	}
 
 	rows, err := db.Query(ctx, QueueExceptSelect,
