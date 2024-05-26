@@ -9,10 +9,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	el "profiles/env"
+	"profiles/lib/logger"
 	pm "profiles/migrations"
 	pb "profiles/proto"
 	"strconv"
@@ -27,6 +29,7 @@ var (
 const Timeout = 10 * time.Second
 
 type server struct {
+	logger *slog.Logger
 	pb.UnimplementedProfileServiceServer
 }
 
@@ -34,7 +37,7 @@ type CityResponse struct {
 	DisplayName string `json:"display_name"`
 }
 
-func GetCity(city string) ([]string, error) {
+func GetCity(city string, logger *slog.Logger) ([]string, error) {
 	url := fmt.Sprintf("https://geocode.maps.co/search?q=%v&api_key=%v",
 		city,
 		el.LoadEnvVar("GEO_API_KEY"),
@@ -42,22 +45,26 @@ func GetCity(city string) ([]string, error) {
 
 	response, err := http.Get(url)
 	if err != nil {
+		logger.Error("failed to request", slog.String("url", url), slog.String("error", err.Error()))
 		return nil, err
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("incorrect status code: %s", response.Status)
+		logger.Error("incorrect response status code", slog.Int("status_code", response.StatusCode))
+		return nil, fmt.Errorf("incorrect status code: %d", response.StatusCode)
 	}
 
 	var cityResponse []*CityResponse
 	if err := json.NewDecoder(response.Body).Decode(&cityResponse); err != nil {
+		logger.Error("failed to decode body", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	displayNames := strings.Split(cityResponse[0].DisplayName, ", ")
 
 	if len(displayNames) <= 0 {
+		logger.Error("display names length = 0")
 		return nil, err
 	}
 
@@ -69,12 +76,14 @@ func (s server) CreateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 	defer cancel()
 
 	if request.Profile == nil {
+		s.logger.Error("profile request is nil")
 		return &pb.ErrorResponse{ErrorMessage: "profile request is nil"}, nil
 	}
 
-	responseCity, err := GetCity(request.Profile.Location)
+	responseCity, err := GetCity(request.Profile.Location, s.logger)
 	if responseCity == nil {
-		return &pb.ErrorResponse{ErrorMessage: "error getting city"}, err
+		s.logger.Error("failed to parse city", slog.String("error", err.Error()))
+		return &pb.ErrorResponse{ErrorMessage: "city retrieval error"}, err
 	}
 
 	if _, err := pg.Exec(ctx, "INSERT INTO profiles (id, name, age, description, pfp_id, user_location, location) VALUES ($1, $2, $3, $4, $5, $6, $7)",
@@ -86,6 +95,7 @@ func (s server) CreateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 		request.Profile.Location,
 		responseCity,
 	); err != nil {
+		s.logger.Error("failed to insert profile", slog.Int64("id", request.Profile.ID), slog.String("error", err.Error()))
 		return &pb.ErrorResponse{ErrorMessage: err.Error()}, err
 	}
 
@@ -106,8 +116,10 @@ func (s server) ReadProfile(_ context.Context, request *pb.IdRequest) (*pb.Profi
 		&profile.Location,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			s.logger.Error("profile not found", slog.Int64("id", request.GetId()), slog.String("error", err.Error()))
 			return nil, errors.New("profile not found")
 		}
+		s.logger.Error("failed to select profile", slog.Int64("id", request.GetId()), slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -118,9 +130,10 @@ func (s server) UpdateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 
-	responseCity, err := GetCity(request.Profile.Location)
+	responseCity, err := GetCity(request.Profile.Location, s.logger)
 	if responseCity == nil {
-		return &pb.ErrorResponse{ErrorMessage: "error in parsing city"}, err
+		s.logger.Error("failed to parse city", slog.String("error", err.Error()))
+		return &pb.ErrorResponse{ErrorMessage: "city retrieval error"}, err
 	}
 
 	if _, err = pg.Exec(ctx, "UPDATE profiles SET name = $1, age = $2, description = $3, pfp_id=$4, user_location = $5, location = $6  WHERE id=$7",
@@ -132,6 +145,7 @@ func (s server) UpdateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 		responseCity,
 		request.Profile.ID,
 	); err != nil {
+		s.logger.Error("failed to update profile", slog.String("error", err.Error()))
 		return &pb.ErrorResponse{ErrorMessage: "error, profile wasn't updated"}, err
 	}
 
@@ -139,6 +153,8 @@ func (s server) UpdateProfile(_ context.Context, request *pb.ProfileRequest) (*p
 }
 
 func main() {
+	setupLogger := logger.SetupLogger(el.LoadEnvVar("LOG_LEVEL"))
+
 	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v",
 		el.LoadEnvVar("DB_USER"),
 		el.LoadEnvVar("DB_PASS"),
@@ -149,29 +165,35 @@ func main() {
 
 	pgconn, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
-		log.Fatal(err)
+		setupLogger.Error("unable to connect to database", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 	pg = pgconn
 	db := stdlib.OpenDBFromPool(pg)
 
 	reload, err := strconv.ParseBool(el.LoadEnvVar("DB_RELOAD"))
 	if err != nil {
-		log.Fatalf("Failed to parse bool env var: %v", err)
+		setupLogger.Error("failed to parse bool env var", slog.Bool("reload_bool", reload), slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	pm.Migrate(reload, db)
 
 	srv := grpc.NewServer()
-	pb.RegisterProfileServiceServer(srv, &server{})
+	pb.RegisterProfileServiceServer(srv, &server{logger: setupLogger})
 
-	lis, err := net.Listen("tcp", ":"+el.LoadEnvVar("PROFILES_PORT"))
+	profilesPort := el.LoadEnvVar("PROFILES_PORT")
+
+	lis, err := net.Listen("tcp", ":"+profilesPort)
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		setupLogger.Error("failed to listen tcp", slog.String("profiles_port", profilesPort), slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
-	log.Println("profiles server started")
+	setupLogger.Info("profiles server started")
 
 	if err = srv.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		setupLogger.Error("failed to serve", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 }
