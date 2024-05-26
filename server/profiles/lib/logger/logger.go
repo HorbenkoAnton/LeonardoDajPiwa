@@ -93,11 +93,7 @@ func SetupLogger(logLevel string) *slog.Logger {
 	}
 
 	log = slog.New(
-<<<<<<< HEAD
-		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
-=======
 		NewCustomHandler(os.Stdout, &HandlerOptions{TimestampFormat: TimeFormat, Level: slog.LevelWarn}),
->>>>>>> 4ba3fc9 (added custom handler for logger)
 	)
 
 	return log
